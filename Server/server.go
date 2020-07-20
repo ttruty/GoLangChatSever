@@ -78,8 +78,9 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 		// for each connection in the connection map
 		connMap.Range(func(key, value interface{}) bool {
 			if conn, ok := value.(net.Conn); ok {
-				handleMessage(scanner.Text(), conn)
-				fmt.Println("Clients " + conn.RemoteAddr().String())
+				if c.RemoteAddr() != conn.RemoteAddr() { //only send to other client, not slef
+					handleMessage(scanner.Text(), conn)
+				}
 			}
 			return true
 		})
