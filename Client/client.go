@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	s "strings"
 )
@@ -31,7 +32,8 @@ func main() {
 	// write string from console
 	fmt.Print("Type STOP to leave chat: \n")
 	for {
-		fmt.Print(">: ")
+		go ReadConn(conn)
+
 		reader := bufio.NewReader(os.Stdin)
 		text, _ := reader.ReadString('\n')
 		if len(text) == 6 && (s.ToLower(text[0:4]) == "stop") { // len include '/n', probably a better way to handle this but it works
@@ -40,15 +42,21 @@ func main() {
 		}
 		//write text to the server
 		_, err = conn.Write([]byte(text))
+
 	}
 
-	//read response
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("failed to read from server:", err)
-		os.Exit(1)
-	}
-	fmt.Println(string(buf[:n]))
+}
 
+func ReadConn(conn net.Conn) {
+	for {
+		//read response
+		buf := make([]byte, 1024)
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("failed to read from server:", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(string(buf[:n]))
+	}
 }

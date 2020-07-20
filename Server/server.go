@@ -7,19 +7,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
+
+	"github.com/google/uuid"
 
 	"github.com/ttruty/Homework/week-7/MakeCerts"
 )
 
 // Resource: https://gist.github.com/drewolson/3950226 - go chat app
-type ConnectedClient struct {
-	conn     net.Conn
-	incoming chan string
-	outgoing chan string
-}
+// Resource: https://golangforall.com/en/post/golang-tcp-server-chat.html
+// Resource: https://stackoverflow.com/questions/36417199/how-to-broadcast-message-using-channel
 
 func main() {
-
 	// get our ca and server certificate
 	serverTLSConf, _, err := MakeCerts.Certsetup()
 	if err != nil {
@@ -33,8 +32,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("server: listen: %s", err)
 	}
-
 	defer listener.Close()
+
+	// add client to map in struct
+	// Using sync.Map to not deal with concurrency slice/map issues
+	var connMap = &sync.Map{}
 
 	//struct to hold connected clients
 	//connectedClient := make(chan ConnectedClient)
@@ -47,29 +49,48 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		//unique id for connected client
+		id := uuid.New().String()
+		connMap.Store(id, conn)
+
 		// concurrently handle connection
-		go handleConnection(conn)
+		go handleConnection(id, conn, connMap)
 	}
 }
 
-func handleConnection(conn net.Conn) {
-	remoteAddr := conn.RemoteAddr().String()
+func handleConnection(id string, c net.Conn, connMap *sync.Map) {
+	defer func() {
+		c.Close()
+		connMap.Delete(id)
+	}()
+
+	remoteAddr := c.RemoteAddr().String()
 	fmt.Println("Client connected from " + remoteAddr)
-	scanner := bufio.NewScanner(conn)
+	scanner := bufio.NewScanner(c)
 
 	for {
 		ok := scanner.Scan()
-
 		if !ok {
 			break
 		}
 
-		handleMessage(scanner.Text(), conn)
-	}
+		connMap.Range(func(key, value interface{}) bool {
+			if conn, ok := value.(net.Conn); ok {
+				handleMessage(scanner.Text(), conn)
+				fmt.Println("Clients " + conn.RemoteAddr().String())
+			}
+			return true
+		})
 
+	}
 	fmt.Println("Client at " + remoteAddr + " disconnected.")
 }
 
 func handleMessage(message string, conn net.Conn) {
 	fmt.Println(conn.RemoteAddr().String() + "> " + message)
+	if _, err := conn.Write([]byte(message)); err != nil {
+		fmt.Println("error accepting connection", err)
+	}
+
 }
