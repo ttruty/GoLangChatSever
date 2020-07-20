@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-
 	"github.com/ttruty/Homework/week-7/MakeCerts"
 )
 
@@ -18,7 +17,26 @@ import (
 // Resource: https://golangforall.com/en/post/golang-tcp-server-chat.html
 // Resource: https://stackoverflow.com/questions/36417199/how-to-broadcast-message-using-channel
 
+type ClientJob struct {
+	name    string
+	message string
+	conn    net.Conn
+}
+
+func generateResponses(clientJobs chan ClientJob) {
+	for {
+		// Wait for the next job to come off the queue.
+		clientJob := <-clientJobs
+
+		// Send back the response.
+		fmt.Println(clientJob.name + "> " + clientJob.message)
+		clientJob.conn.Write([]byte(clientJob.name + ">" + clientJob.message))
+	}
+}
+
 func main() {
+	//make channel
+
 	// get our ca and server certificate
 	serverTLSConf, _, err := MakeCerts.Certsetup()
 	if err != nil {
@@ -35,7 +53,7 @@ func main() {
 	defer listener.Close()
 
 	// add client to map in struct
-	// Using sync.Map to not deal with concurrency slice/map issues
+	// Using sync.Map to store map off connected clients
 	var connMap = &sync.Map{}
 
 	// run forever, keep listening for connections
@@ -59,9 +77,12 @@ func main() {
 func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 	//defer closing connection and deleting the connection map
 	defer func() {
-		c.Close()
 		connMap.Delete(id)
+		c.Close()
 	}()
+
+	clientJobs := make(chan ClientJob)
+	go generateResponses(clientJobs)
 
 	remoteAddr := c.RemoteAddr().String()
 	fmt.Println("Client connected from " + remoteAddr)
@@ -79,7 +100,7 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 		connMap.Range(func(key, value interface{}) bool {
 			if conn, ok := value.(net.Conn); ok {
 				if c.RemoteAddr() != conn.RemoteAddr() { //only send to other client, not slef
-					handleMessage(scanner.Text(), conn)
+					clientJobs <- ClientJob{remoteAddr, scanner.Text(), conn}
 				}
 			}
 			return true
@@ -87,13 +108,4 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 
 	}
 	fmt.Println("Client at " + remoteAddr + " disconnected.")
-}
-
-//write message in server and send to all connected clients
-func handleMessage(message string, conn net.Conn) {
-	fmt.Println(conn.RemoteAddr().String() + "> " + message)
-	if _, err := conn.Write([]byte(message)); err != nil {
-		fmt.Println("error accepting connection", err)
-	}
-
 }
