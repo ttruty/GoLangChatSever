@@ -38,9 +38,6 @@ func main() {
 	// Using sync.Map to not deal with concurrency slice/map issues
 	var connMap = &sync.Map{}
 
-	//struct to hold connected clients
-	//connectedClient := make(chan ConnectedClient)
-
 	// run forever, keep listening for connections
 	for {
 		//accept an incoming connection and create a handle to the connection (conn)
@@ -60,6 +57,7 @@ func main() {
 }
 
 func handleConnection(id string, c net.Conn, connMap *sync.Map) {
+	//defer closing connection and deleting the connection map
 	defer func() {
 		c.Close()
 		connMap.Delete(id)
@@ -67,14 +65,17 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 
 	remoteAddr := c.RemoteAddr().String()
 	fmt.Println("Client connected from " + remoteAddr)
+	// scanner for input
 	scanner := bufio.NewScanner(c)
 
 	for {
+		// check if able to receive in scan
 		ok := scanner.Scan()
 		if !ok {
 			break
 		}
 
+		// for each connection in the connection map
 		connMap.Range(func(key, value interface{}) bool {
 			if conn, ok := value.(net.Conn); ok {
 				handleMessage(scanner.Text(), conn)
@@ -87,6 +88,7 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 	fmt.Println("Client at " + remoteAddr + " disconnected.")
 }
 
+//write message in server and send to all connected clients
 func handleMessage(message string, conn net.Conn) {
 	fmt.Println(conn.RemoteAddr().String() + "> " + message)
 	if _, err := conn.Write([]byte(message)); err != nil {
