@@ -118,7 +118,7 @@ func Certsetup() (serverTLSConf *tls.Config, clientTLSConf *tls.Config, err erro
 		RootCAs: certpool,
 	}
 
-	//write pem byte for client to read.
+	//Write to pem file for client to read.
 	f, err := os.Create("../Client/client.pem")
 	if err != nil {
 		panic(err)

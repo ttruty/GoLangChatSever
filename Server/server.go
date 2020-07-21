@@ -35,7 +35,6 @@ func generateResponses(clientJobs chan ClientJob) {
 }
 
 func main() {
-	//make channel
 
 	// get our ca and server certificate
 	serverTLSConf, _, err := MakeCerts.Certsetup()
@@ -54,7 +53,7 @@ func main() {
 
 	// add client to map in struct
 	// Using sync.Map to store map off connected clients
-	var connMap = &sync.Map{}
+	var connMap = &sync.Map{} //TODO: review to use this or use sync.Mutex and locks?
 
 	// run forever, keep listening for connections
 	for {
