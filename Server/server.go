@@ -29,7 +29,6 @@ func generateResponses(clientJobs chan ClientJob) {
 		clientJob := <-clientJobs
 
 		// Send back the response.
-		fmt.Println(clientJob.name + "> " + clientJob.message)
 		clientJob.conn.Write([]byte(clientJob.name + ">" + clientJob.message))
 	}
 }
@@ -53,7 +52,7 @@ func main() {
 
 	// add client to map in struct
 	// Using sync.Map to store map off connected clients
-	var connMap = &sync.Map{} //TODO: review to use this or use sync.Mutex and locks?
+	var connMap = &sync.Map{} //https://golang.org/pkg/sync/#Map
 
 	// run forever, keep listening for connections
 	for {
@@ -100,6 +99,8 @@ func handleConnection(id string, c net.Conn, connMap *sync.Map) {
 			if conn, ok := value.(net.Conn); ok {
 				if c.RemoteAddr() != conn.RemoteAddr() { //only send to other client, not slef
 					clientJobs <- ClientJob{remoteAddr, scanner.Text(), conn}
+				} else {
+					fmt.Println(remoteAddr, ">", scanner.Text())
 				}
 			}
 			return true
