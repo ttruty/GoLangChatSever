@@ -1,4 +1,4 @@
-#Go Lang Final Project
+# Go Lang Final Project
 ## TCP Server and client for chat
 
 This project is a TCP messaging server.
